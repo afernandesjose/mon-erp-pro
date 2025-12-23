@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Mon ERP Pro</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <style>
+        body { background-color: #f4f6f8; font-family: 'Segoe UI', system-ui, sans-serif; }
+        :root { --invoice-color: {{ company.theme_color }}; --brand-dark: #2c3e50; }
+        
+        .navbar-custom { background-color: #ffffff; padding: 10px 25px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-bottom: 1px solid #eee; }
+        .navbar-brand { color: var(--brand-dark) !important; font-weight: 800; font-size: 1.2rem; }
+        .nav-link { color: #555; margin-right: 15px; font-weight: 500; font-size: 0.95rem; }
+        .nav-link:hover { color: var(--brand-dark); }
+        .nav-link.active { color: var(--brand-dark) !important; border-bottom: 2px solid var(--invoice-color); }
+
+        .search-container { position: relative; width: 100%; max-width: 400px; }
+        .search-input { background-color: #f1f3f5; border: 1px solid transparent; border-radius: 50px; padding: 10px 15px 10px 45px; width: 100%; transition: all 0.2s; }
+        .search-input:focus { background-color: #fff; border-color: var(--invoice-color); box-shadow: 0 0 0 3px rgba(0,0,0,0.05); outline: none; }
+        .search-icon { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: #888; pointer-events: none; }
+        .search-results { position: absolute; top: 45px; left: 0; width: 100%; background: white; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); z-index: 1100; display: none; overflow: hidden; border: 1px solid #eee; }
+        .search-result-item { padding: 12px 20px; cursor: pointer; border-bottom: 1px solid #f8f9fa; display: flex; align-items: center; }
+        .search-result-item:hover { background-color: #f0f2f5; }
+
+        .client-avatar { width: 50px; height: 50px; min-width: 50px; border-radius: 50%; background-color: #e9ecef; color: #6c757d; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; margin-right: 15px; }
+        .invoice-sheet { background: white; padding: 40px; box-shadow: 0 0 15px rgba(0,0,0,0.1); min-height: 800px; font-size: 0.9rem; }
+        .table-custom thead th { background-color: var(--invoice-color) !important; color: #333; border: none; padding: 10px; }
+        .payment-alert { background-color: var(--invoice-color); padding: 10px; border-radius: 4px; font-weight: bold; opacity: 0.8; }
+        .card-stat { border: none; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); transition: transform 0.2s; }
+        .card-stat:hover { transform: translateY(-5px); }
+        .modal-backdrop { z-index: 1040 !important; }
+        .d-none-search { display: none !important; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-custom mb-5 sticky-top">
+    <div class="container-fluid px-4">
+        <a class="navbar-brand me-4" href="/"><i class="bi bi-box-seam-fill me-2" style="color: var(--invoice-color);"></i>Mon ERP</a>
+        <div class="collapse navbar-collapse" id="navbarContent">
+            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                <li class="nav-item"><a class="nav-link {% if page=='dashboard' %}active{% endif %}" href="/"><i class="bi bi-speedometer2"></i> Dash</a></li>
+                <li class="nav-item"><a class="nav-link {% if page=='invoices' %}active{% endif %}" href="/invoices_page"><i class="bi bi-receipt"></i> Factures</a></li>
+                <li class="nav-item"><a class="nav-link {% if page=='customers' %}active{% endif %}" href="/customers_page"><i class="bi bi-people"></i> Clients</a></li>
+                <li class="nav-item"><a class="nav-link {% if page=='products' %}active{% endif %}" href="/products_page"><i class="bi bi-box"></i> Produits</a></li>
+            </ul>
+            <div class="search-container me-3">
+                <i class="bi bi-search search-icon"></i>
+                <input type="text" id="globalSearch" class="search-input" placeholder="Rechercher..." oninput="performSearch(this.value)" autocomplete="off">
+                <div id="searchResults" class="search-results"></div>
+            </div>
+            <button class="btn btn-sm btn-outline-dark fw-bold rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#configModal"><i class="bi bi-gear-fill"></i></button>
+        </div>
+    </div>
+</nav>
+
+<div class="container px-4">
+    {% if page == 'dashboard' %}
+    <div class="row mb-4">
+        <div class="col-md-4"><div class="card card-stat p-4 mb-3 bg-white h-100 d-flex flex-column justify-content-center"><div class="text-muted small text-uppercase fw-bold ls-1 mb-2">CA Total</div><h2 class="fw-bold text-primary mb-0">{{ "%.2f"|format(total_revenue) }} €</h2></div></div>
+        <div class="col-md-4"><div class="card card-stat p-4 mb-3 bg-white h-100 d-flex flex-column justify-content-center"><div class="text-muted small text-uppercase fw-bold ls-1 mb-2">Clients</div><h2 class="fw-bold text-dark mb-0">{{ customers|length }}</h2></div></div>
+        <div class="col-md-4"><div class="card card-stat p-4 mb-3 bg-white h-100 d-flex flex-column justify-content-center"><div class="text-muted small text-uppercase fw-bold ls-1 mb-2">Produits</div><h2 class="fw-bold text-dark mb-0">{{ products|length }}</h2></div></div>
+    </div>
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+        <div class="card-header bg-white py-3 border-bottom"><h5 class="m-0 fw-bold">⏳ Dernières Factures</h5></div>
+        <div class="card-body p-0"><table class="table table-hover mb-0 align-middle"><thead class="table-light"><tr><th class="ps-4">N°</th><th>Client</th><th>Date</th><th class="text-end">HT</th><th class="pe-4"></th></tr></thead>
+        <tbody id="searchTable">
+            {% for inv in recent_invoices %}
+            <tr class="search-item">
+                <td class="ps-4 fw-bold text-primary">#{{ inv.id }}</td><td class="fw-bold">{{ inv.customer.name }}</td><td>{{ inv.date.strftime('%d/%m/%Y') }}</td><td class="text-end fw-bold fs-5">{{ "%.2f"|format(inv.total_ht) }} €</td>
+                <td class="text-end pe-4"><button class="btn btn-sm btn-light rounded-pill px-3 fw-bold" onclick="loadInvoiceAndEdit({{ inv.id }})">Voir</button></td>
+            </tr>
+            {% endfor %}
+        </tbody></table></div>
+        <div class="card-footer bg-white text-center py-3"><a href="/invoices_page" class="btn btn-primary fw-bold px-4 rounded-pill">Tout voir</a></div>
+    </div>
+    {% endif %}
+
+    {% if page == 'invoices' %}
+    <div class="d-flex justify-content-between align-items-center mb-4"><h3 class="fw-bold m-0">Factures</h3><button class="btn btn-primary btn-lg shadow-sm fw-bold rounded-pill px-4" onclick="openEditor()"><i class="bi bi-plus-lg me-2"></i>Nouvelle</button></div>
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden"><div class="card-body p-0"><table class="table table-hover mb-0 align-middle"><thead class="bg-light"><tr><th class="ps-4">N°</th><th>Client</th><th>Date</th><th>Échéance</th><th class="text-end">Total TTC</th><th class="pe-4 text-end">Actions</th></tr></thead>
+    <tbody id="searchTable">
+        {% for inv in invoices %}
+        <tr class="search-item">
+            <td class="ps-4 fw-bold text-primary">#{{ inv.id }}</td><td class="fw-bold">{{ inv.customer.name }}</td><td>{{ inv.date.strftime('%d/%m/%Y') }}</td><td><span class="badge bg-white text-dark border rounded-pill px-3 py-2">{{ inv.due_date.strftime('%d/%m/%Y') if inv.due_date else '-' }}</span></td>
+            <td class="text-end fw-bold fs-5">{{ "%.2f"|format(inv.total_ttc) }} €</td>
+            <td class="text-end pe-4">
+                <button class="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-bold me-1" onclick="loadInvoiceAndEdit({{ inv.id }})"><i class="bi bi-pencil"></i></button>
+                <button class="btn btn-sm btn-outline-danger rounded-pill px-3 fw-bold" onclick="deleteInvoice({{ inv.id }})"><i class="bi bi-trash"></i></button>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody></table></div></div>
+    {% endif %}
+
+    {% if page == 'customers' %}
+    <div class="d-flex justify-content-between align-items-center mb-4"><h3 class="fw-bold m-0">Clients</h3><button class="btn btn-primary fw-bold rounded-pill px-4 shadow-sm" data-bs-toggle="modal" data-bs-target="#clientModal"><i class="bi bi-plus-lg me-2"></i>Nouveau</button></div>
+    <div class="row g-3" id="searchGrid">
+        {% for c in customers %}
+        <div class="col-md-4 search-item">
+            <div class="card border-0 shadow-sm h-100 rounded-4">
+                <div class="card-body p-4 position-relative">
+                    <div class="position-absolute top-0 end-0 p-3">
+                        <button class="btn btn-sm btn-light border me-1" onclick='openClientModal({{ c.id }}, "{{ c.name }}", "{{ c.email }}", {{ c.address | tojson }}, "{{ c.siret }}")'><i class="bi bi-pencil"></i></button>
+                        <button class="btn btn-sm btn-light border text-danger" onclick="deleteClient({{ c.id }})"><i class="bi bi-trash"></i></button>
+                    </div>
+                    <div class="d-flex align-items-center mb-3"><div class="client-avatar"><i class="bi bi-person-fill"></i></div><h5 class="card-title fw-bold m-0">{{ c.name }}</h5></div>
+                    <p class="card-text text-muted small mb-0"><i class="bi bi-geo-alt me-2"></i>{{ c.address or 'Pas d\'adresse' }}<br><i class="bi bi-envelope me-2 mt-2"></i>{{ c.email or 'Pas d\'email' }}<br><i class="bi bi-hash me-2 mt-2"></i>SIRET: {{ c.siret or 'N/A' }}</p>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if page == 'products' %}
+    <div class="d-flex justify-content-between align-items-center mb-4"><h3 class="fw-bold m-0">Produits</h3><button class="btn btn-primary fw-bold rounded-pill px-4 shadow-sm" onclick="openProductModal()"><i class="bi bi-plus-lg me-2"></i>Nouveau</button></div>
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden"><table class="table table-hover mb-0 align-middle"><thead class="bg-light"><tr><th class="ps-4">Produit</th><th class="text-center">TVA</th><th class="text-end pe-4">Prix HT</th><th class="text-end pe-4">Action</th></tr></thead>
+    <tbody id="searchTable">
+        {% for p in products %}
+        <tr class="search-item">
+            <td class="ps-4 fw-bold">{{ p.name }}</td><td class="text-center"><span class="badge bg-light text-dark border">{{ p.vat_rate }}%</span></td><td class="text-end pe-4 fw-bold fs-5">{{ p.price }} €</td>
+            <td class="text-end pe-4"><button class="btn btn-sm btn-outline-primary border-0 me-1" onclick='openProductModal({{ p.id }}, "{{ p.name }}", {{ p.price }}, {{ p.vat_rate }})'><i class="bi bi-pencil-fill"></i></button><button class="btn btn-sm btn-outline-danger border-0" onclick="deleteProduct({{ p.id }})"><i class="bi bi-trash-fill"></i></button></td>
+        </tr>
+        {% endfor %}
+    </tbody></table></div>
+    {% endif %}
+</div>
+
+<div class="modal fade" id="editorModal" tabindex="-1" data-bs-backdrop="static"><div class="modal-dialog modal-xl modal-dialog-scrollable"><div class="modal-content"><div class="modal-header border-0 pb-0"><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body bg-light">
+    <div class="invoice-sheet mx-auto rounded-3" style="max-width: 900px;">
+        <input type="hidden" id="editInvoiceId"><div class="row invoice-header-row"><div class="col-6"><div class="logo-placeholder mb-2"><img src="{{ company.logo_url }}" width="80" class="rounded-3"></div><div class="company-name fs-4">{{ company.name }}</div><div class="text-muted">{{ company.address }}</div></div><div class="col-6 text-end"><label class="fw-bold text-uppercase small text-muted mb-1">Client</label><div class="input-group mb-3 justify-content-end"><select id="editCustomer" class="form-select w-auto text-end bg-white border shadow-sm fw-bold" style="max-width: 300px;" onchange="updateClientInfo()"><option value="" disabled selected>-- Sélectionner --</option>{% for c in customers %}<option value="{{ c.id }}" data-addr="{{ c.address }}" data-siret="{{ c.siret }}">{{ c.name }}</option>{% endfor %}</select><button class="btn btn-primary shadow-sm" type="button" onclick="openChildModal('clientModal')"><i class="bi bi-plus-lg"></i></button></div><div id="clientInfoDisplay" class="text-muted small p-3 bg-light rounded-3 border text-start d-inline-block" style="min-width: 250px;">Sélectionnez un client...</div></div></div>
+        <div class="invoice-title mt-4">Facture <span id="displayInvNum" class="text-primary"></span></div><p class="text-muted mb-4">Date : <span id="displayDate"></span></p>
+        <table class="table table-custom align-middle mt-4"><thead><tr><th style="width: 30%" class="rounded-start-3">Description</th><th style="width: 10%" class="text-center">Qté</th><th style="width: 15%" class="text-end">Prix HT</th><th style="width: 10%" class="text-center">Remise %</th><th style="width: 15%" class="text-center">TVA %</th><th style="width: 15%" class="text-end">Total HT</th><th style="width: 5%" class="rounded-end-3"></th></tr></thead><tbody id="linesContainer"></tbody></table><button class="btn btn-light text-primary fw-bold w-100 mb-5 p-3 border border-primary border-dashed rounded-3" onclick="addLine()"><i class="bi bi-plus-circle me-2"></i>Ajouter une ligne</button>
+        <div class="row mt-5">
+            <div class="col-6"><div class="payment-alert shadow-sm p-3"><i class="bi bi-calendar-event me-2"></i>Échéance</div><div class="mt-3 ps-3 text-muted fw-bold">Date limite : <input type="date" id="editDueDate" class="form-control d-inline-block w-auto ms-2 border shadow-sm fw-bold"></div></div>
+            <div class="col-6">
+                <div class="total-box bg-light p-4 rounded-4 border">
+                    <div class="d-flex justify-content-between mb-2"><span>Total HT</span><span id="displayHT" class="fw-bold">0,00 €</span></div>
+                    <div class="d-flex justify-content-between mb-2 text-muted"><span>Total TVA</span><span id="displayTVA">0,00 €</span></div>
+                    <div class="d-flex justify-content-between mt-3 pt-3 border-top fs-3 text-primary fw-bold"><span>Net à payer</span><span id="displayTTC">0,00 €</span></div>
+                </div>
+            </div>
+        </div>
+        <hr class="my-5"><div class="invoice-footer row text-muted small"><div class="col-6"><strong class="text-dark">{{ company.name }}</strong><br>SIRET: {{ company.siret }}</div><div class="col-6 text-end"><strong class="text-dark">Banque</strong><br>IBAN: {{ company.iban }}</div></div>
+    </div>
+</div><div class="modal-footer bg-white border-top-0"><button type="button" class="btn btn-light fw-bold rounded-pill px-4" data-bs-dismiss="modal">Fermer</button><button type="button" class="btn btn-primary fw-bold px-5 rounded-pill shadow-sm" onclick="saveInvoice()"><i class="bi bi-check-lg me-2"></i>Enregistrer</button></div></div></div></div>
+
+<div class="modal fade" id="clientModal" style="z-index: 1070;"><div class="modal-dialog modal-dialog-centered"><div class="modal-content rounded-4 border-0 shadow"><div class="modal-header border-0 pb-0"><h5 class="fw-bold" id="clientModalTitle">Nouveau Client</h5><button type="button" class="btn-close" onclick="closeChildModal('clientModal')"></button></div><div class="modal-body p-4"><input type="hidden" id="editClientId"><input id="newClientName" class="form-control mb-3 shadow-sm" placeholder="Nom Entreprise"><input id="newClientEmail" class="form-control mb-3 shadow-sm" placeholder="Email"><textarea id="newClientAddr" class="form-control mb-3 shadow-sm" rows="3" placeholder="Adresse"></textarea><input id="newClientSiret" class="form-control mb-4 shadow-sm" placeholder="SIRET"><button class="btn btn-primary w-100 fw-bold rounded-pill py-2 shadow-sm" onclick="saveClient()">Enregistrer</button></div></div></div></div>
+<div class="modal fade" id="productModal" style="z-index: 1070;"><div class="modal-dialog modal-dialog-centered"><div class="modal-content rounded-4 border-0 shadow"><div class="modal-header border-0 pb-0"><h5 class="fw-bold" id="prodModalTitle">Nouveau Produit</h5><button type="button" class="btn-close" onclick="closeChildModal('productModal')"></button></div><div class="modal-body p-4"><input type="hidden" id="editProdId"><label class="small fw-bold text-muted mb-1">Désignation</label><input id="newProdName" class="form-control mb-3 shadow-sm" placeholder="Ex: Maintenance"><label class="small fw-bold text-muted mb-1">Prix de vente HT (€)</label><input id="newProdPrice" class="form-control mb-3 shadow-sm" type="number" step="0.01"><label class="small fw-bold text-muted mb-1">Taux de TVA (%)</label><select id="newProdVat" class="form-select mb-4 shadow-sm"><option value="20.0">20%</option><option value="10.0">10%</option><option value="5.5">5.5%</option><option value="0.0">0%</option></select><button class="btn btn-primary w-100 fw-bold rounded-pill py-2 shadow-sm" onclick="saveProduct()">Sauvegarder</button></div></div></div></div>
+<div class="modal fade" id="configModal" style="z-index: 1060;"><div class="modal-dialog modal-dialog-centered"><div class="modal-content rounded-4 border-0 shadow"><div class="modal-header border-0 pb-0"><h5 class="fw-bold">Configuration</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body p-4"><div class="row mb-4"><div class="col-6"><label class="small fw-bold text-muted mb-1">Thème</label><input type="color" id="confColor" class="form-control form-control-color w-100 shadow-sm" value="{{ company.theme_color }}" style="height: 40px;"></div><div class="col-6"><label class="small fw-bold text-muted mb-1">Délai (j)</label><input type="number" id="confTerm" class="form-control shadow-sm" value="{{ company.payment_term }}"></div></div><input id="confName" class="form-control mb-2 shadow-sm fw-bold" value="{{ company.name }}"> <textarea id="confAddr" class="form-control mb-2 shadow-sm" rows="2">{{ company.address }}</textarea> <div class="row g-2 mb-2"><div class="col-6"><input id="confSiret" class="form-control shadow-sm small" value="{{ company.siret }}"></div><div class="col-6"><input id="confVat" class="form-control shadow-sm small" value="{{ company.vat_number }}"></div></div><input id="confIban" class="form-control mb-2 shadow-sm small" value="{{ company.iban }}"> <input id="confLogo" class="form-control mb-3 shadow-sm small" value="{{ company.logo_url }}"> <textarea id="confTerms" class="form-control mb-4 shadow-sm small" rows="3">{{ company.legal_terms }}</textarea><button class="btn btn-dark w-100 fw-bold rounded-pill py-2 shadow-sm" onclick="saveCompany()">Enregistrer</button></div></div></div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    let ALL_PRODUCTS = [ {% for p in products %} { id: {{ p.id }}, name: "{{ p.name }}", price: {{ p.price }}, vat_rate: {{ p.vat_rate }} }, {% endfor %} ];
+    let activeRowId = null;
+    let searchTimeout;
+    
+    async function performSearch(query) {
+        const resultsDiv = document.getElementById('searchResults');
+        if (query.length < 2) { resultsDiv.style.display = 'none'; return; }
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(async () => {
+            try {
+                const res = await fetch('/api/search?q=' + query);
+                const results = await res.json();
+                resultsDiv.innerHTML = '';
+                if (results.length === 0) { resultsDiv.innerHTML = '<div class="p-3 text-muted small">Aucun résultat</div>'; } 
+                else {
+                    results.forEach(item => {
+                        const div = document.createElement('div');
+                        div.className = 'search-result-item';
+                        let badgeColor = item.type === 'Client' ? 'bg-primary' : (item.type === 'Produit' ? 'bg-success' : 'bg-warning text-dark');
+                        div.innerHTML = `<span class="badge ${badgeColor} me-2" style="width:60px">${item.type}</span> ${item.label}`;
+                        div.onclick = () => {
+                            if(item.type === 'Facture') loadInvoiceAndEdit(item.id);
+                            if(item.type === 'Client') openClientModal(item.id, item.data.name, item.data.email, item.data.address, item.data.siret);
+                            if(item.type === 'Produit') openProductModal(item.id, item.data.name, item.data.price, item.data.vat_rate);
+                            resultsDiv.style.display = 'none'; document.getElementById('globalSearch').value = '';
+                        };
+                        resultsDiv.appendChild(div);
+                    });
+                }
+                resultsDiv.style.display = 'block';
+            } catch (e) { console.error(e); }
+        }, 300);
+    }
+    document.addEventListener('click', function(e) { if (!document.querySelector('.search-container').contains(e.target)) document.getElementById('searchResults').style.display = 'none'; });
+
+    function openChildModal(modalId, rowId = null) { if(rowId) activeRowId = rowId; new bootstrap.Modal(document.getElementById(modalId)).show(); }
+    function closeChildModal(modalId) { bootstrap.Modal.getInstance(document.getElementById(modalId)).hide(); }
+    function updateClientInfo() { const sel = document.getElementById('editCustomer'); if(sel.selectedIndex < 0) return; const opt = sel.options[sel.selectedIndex]; if(sel.value) document.getElementById('clientInfoDisplay').innerHTML = (opt.getAttribute('data-addr') || 'Pas d\'adresse'); else document.getElementById('clientInfoDisplay').innerText = 'Sélectionnez un client...'; }
+    async function createClient() { const payload = { name: document.getElementById('newClientName').value, email: document.getElementById('newClientEmail').value, address: document.getElementById('newClientAddr').value, siret: document.getElementById('newClientSiret').value }; const res = await fetch('/customers/', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) }); if(res.ok) { const newClient = await res.json(); if(document.getElementById('editorModal').classList.contains('show')) { const sel = document.getElementById('editCustomer'); const opt = document.createElement("option"); opt.value = newClient.id; opt.text = newClient.name; opt.setAttribute("data-addr", newClient.address); opt.setAttribute("data-siret", newClient.siret); sel.add(opt); sel.value = newClient.id; updateClientInfo(); closeChildModal('clientModal'); } else location.reload(); } }
+    async function loadInvoiceAndEdit(id) { try { const res = await fetch('/api/invoices/' + id); if (!res.ok) throw new Error("Erreur"); const data = await res.json(); openEditor(data.id, data.customer_id, data.lines, data.due_date); } catch (e) { alert("Impossible de charger la facture : " + e); } }
+    function openClientModal(id=null, name="", email="", addr="", siret="") { const modal = new bootstrap.Modal(document.getElementById('clientModal')); document.getElementById('editClientId').value = id || ""; document.getElementById('newClientName').value = name; document.getElementById('newClientEmail').value = email; document.getElementById('newClientAddr').value = addr; document.getElementById('newClientSiret').value = siret; document.getElementById('clientModalTitle').innerText = id ? "Modifier Client" : "Nouveau Client"; modal.show(); }
+    async function saveClient() { const id = document.getElementById('editClientId').value; const payload = { name: document.getElementById('newClientName').value, email: document.getElementById('newClientEmail').value, address: document.getElementById('newClientAddr').value, siret: document.getElementById('newClientSiret').value }; let url = '/customers/', method = 'POST'; if (id) { url = '/customers/' + id; method = 'PUT'; } const res = await fetch(url, { method: method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) }); if(res.ok) { if(!id && document.getElementById('editorModal').classList.contains('show')) { createClient(); } else location.reload(); } }
+    async function deleteClient(id) { if(confirm("Supprimer ce client ?")) { const res = await fetch('/customers/' + id, { method: 'DELETE' }); if(res.ok) location.reload(); else alert("Impossible : client lié à des factures."); } }
+    async function deleteProduct(id) { if(confirm("Supprimer ce produit ?")) { const res = await fetch('/products/' + id, { method: 'DELETE' }); if(res.ok) location.reload(); else alert("Impossible : produit utilisé."); } }
+    async function deleteInvoice(id) { if(confirm("Supprimer cette facture ?")) { const res = await fetch('/invoices/' + id, { method: 'DELETE' }); if(res.ok) location.reload(); else alert("Erreur."); } }
+    function openProductModal(id=null, name="", price="", vat=20.0) { const modal = new bootstrap.Modal(document.getElementById('productModal')); document.getElementById('editProdId').value = id || ""; document.getElementById('newProdName').value = name; document.getElementById('newProdPrice').value = price; document.getElementById('newProdVat').value = vat; document.getElementById('prodModalTitle').innerText = id ? "Modifier Produit" : "Nouveau Produit"; modal.show(); }
+    async function saveProduct() { const id = document.getElementById('editProdId').value; const payload = { name: document.getElementById('newProdName').value, price: parseFloat(document.getElementById('newProdPrice').value), vat_rate: parseFloat(document.getElementById('newProdVat').value) }; let url = '/products/', method = 'POST'; if (id) { url = '/products/' + id; method = 'PUT'; } const res = await fetch(url, { method: method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) }); if(res.ok) { if(document.getElementById('editorModal').classList.contains('show')) { const newProd = await res.json(); if (!id) { ALL_PRODUCTS.push(newProd); document.querySelectorAll('select[id^="p-"]').forEach(s => s.add(new Option(newProd.name, newProd.id))); if(activeRowId) { document.getElementById('p-'+activeRowId).value = newProd.id; upd(activeRowId); } activeRowId = null; closeChildModal('productModal'); } else location.reload(); } else location.reload(); } }
+    function setTextSafe(id, text) { const el = document.getElementById(id); if (el) el.innerText = text; }
+    function openEditor(invId=null, custId=null, lines=[], dueDateStr=null) { new bootstrap.Modal(document.getElementById('editorModal')).show(); document.getElementById('editInvoiceId').value = invId || ""; setTextSafe('displayInvNum', invId ? "#" + invId : "BROUILLON"); setTextSafe('displayDate', new Date().toLocaleDateString('fr-FR')); if (dueDateStr && dueDateStr !== "None") { document.getElementById('editDueDate').value = dueDateStr.split('T')[0]; } else { const d = new Date(); const term = parseInt("{{ company.payment_term }}") || 30; d.setDate(d.getDate() + term); document.getElementById('editDueDate').value = d.toISOString().split('T')[0]; } document.getElementById('editCustomer').value = custId || ""; updateClientInfo(); document.getElementById('linesContainer').innerHTML = ""; if (lines && lines.length > 0) { lines.forEach(l => { let safeVat = (l.vat_rate !== null && l.vat_rate !== undefined) ? l.vat_rate : 20; addLine(l.product_id, l.quantity, l.discount, safeVat); }); } else { addLine(); } }
+    function addLine(prodId=null, qty=1, disc=0, vat=null) { const rid = Date.now() + Math.floor(Math.random() * 1000); let opts = ALL_PRODUCTS.map(p => `<option value="${p.id}" ${p.id == prodId ? 'selected' : ''}>${p.name}</option>`).join(''); const tr = document.createElement('tr'); tr.id = 'r-'+rid; tr.innerHTML = `<td><div class="input-group"><select class="form-select bg-white border shadow-sm fw-bold" id="p-${rid}" onchange="upd(${rid})"><option value="" disabled ${!prodId?'selected':''}>- Produit -</option>${opts}</select><button class="btn btn-outline-primary shadow-sm border" onclick="openProductModal(null, '', '', 20.0); activeRowId = ${rid};"><i class="bi bi-plus-lg"></i></button></div></td><td class="text-center"><input type="number" class="form-control text-center bg-white border shadow-sm fw-bold" id="q-${rid}" value="${qty}" min="1" onchange="upd(${rid})"></td><td class="text-end"><input class="form-control text-end bg-light border-0 fw-bold" id="pr-${rid}" readonly></td><td class="text-center"><input type="number" class="form-control text-center bg-white border shadow-sm" id="d-${rid}" value="${disc}" min="0" max="100" onchange="upd(${rid})" placeholder="0"></td><td class="text-center"><input class="form-control text-center bg-white border shadow-sm" id="v-${rid}" value="${(vat != null) ? vat : 20}" onchange="upd(${rid})"></td><td class="text-end pt-2 fw-bold fs-5" id="tot-${rid}">0.00 €</td><td class="text-center"><button class="btn btn-link text-danger p-0 mt-2" onclick="this.closest('tr').remove(); updTotals()"><i class="bi bi-trash-fill fs-5"></i></button></td>`; document.getElementById('linesContainer').appendChild(tr); if(prodId) { const p = ALL_PRODUCTS.find(x => x.id == prodId); if(p) { document.getElementById('pr-'+rid).value = p.price.toFixed(2) + " €"; upd(rid, false); } else { console.warn("Produit ID " + prodId + " introuvable"); } } }
+    function upd(rid, resetVat=true) { const pVal = document.getElementById('p-'+rid).value; if(!pVal) return; const p = ALL_PRODUCTS.find(x => x.id == pVal); if(!p) return; if(resetVat && p) document.getElementById('v-'+rid).value = p.vat_rate; const q = document.getElementById('q-'+rid).value || 1; const d = document.getElementById('d-'+rid).value || 0; const vat = document.getElementById('v-'+rid).value || 0; const price = p.price; const ht = price * q * (1 - (d/100)); document.getElementById('pr-'+rid).value = price.toFixed(2) + " €"; document.getElementById('tot-'+rid).innerText = ht.toFixed(2) + " €"; updTotals(); }
+    function updTotals() { let totalHT = 0; let totalVAT = 0; document.querySelectorAll('[id^="r-"]').forEach(row => { const rid = row.id.split('-')[1]; const totEl = document.getElementById('tot-'+rid); const vatEl = document.getElementById('v-'+rid); if (totEl && vatEl) { const htLine = parseFloat(totEl.innerText.replace(' €','')) || 0; const vatRate = parseFloat(vatEl.value) || 0; totalHT += htLine; totalVAT += htLine * (vatRate / 100); } }); setTextSafe('displayHT', totalHT.toFixed(2) + " €"); setTextSafe('displayTVA', totalVAT.toFixed(2) + " €"); setTextSafe('displayTTC', (totalHT + totalVAT).toFixed(2) + " €"); }
+    async function saveInvoice() { const id = document.getElementById('editInvoiceId').value; const cust = document.getElementById('editCustomer').value; if(!cust) return alert("Veuillez sélectionner un client."); const lines = []; document.querySelectorAll('[id^="r-"]').forEach(r => { const rid = r.id.split('-')[1]; const pid = document.getElementById('p-'+rid).value; if(pid) lines.push({ product_id: parseInt(pid), quantity: parseInt(document.getElementById('q-'+rid).value)||1, discount: parseFloat(document.getElementById('d-'+rid).value)||0, vat_rate: parseFloat(document.getElementById('v-'+rid).value)||0 }); }); if(lines.length === 0) return alert("Ajoutez au moins une ligne."); const dateVal = document.getElementById('editDueDate').value; const payload = { customer_id: parseInt(cust), lines: lines, due_date: dateVal ? dateVal : null }; const response = await fetch(id ? '/invoices/'+id : '/invoices/', { method: id ? 'PUT' : 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) }); if (response.ok) { location.reload(); } else { const errorText = await response.text(); alert("Erreur lors de l'enregistrement :\n" + errorText); } }
+    async function saveCompany() { await fetch('/company/', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ name: document.getElementById('confName').value, address: document.getElementById('confAddr').value, siret: document.getElementById('confSiret').value, vat_number: document.getElementById('confVat').value, iban: document.getElementById('confIban').value, bic: 'BANKFRPP', logo_url: document.getElementById('confLogo').value, legal_terms: document.getElementById('confTerms').value, theme_color: document.getElementById('confColor').value, payment_term: parseInt(document.getElementById('confTerm').value) }) }); location.reload(); }
+</script>
+</body>
+</html>
