@@ -47,10 +47,14 @@
             </ul>
             <div class="search-container me-3">
                 <i class="bi bi-search search-icon"></i>
-                <input type="text" id="globalSearch" class="search-input" placeholder="Rechercher..." oninput="performSearch(this.value)" autocomplete="off">
+                <input type="text" id="globalSearch" class="search-input" placeholder="Rechercher (Client, Facture...)" oninput="performSearch(this.value)" autocomplete="off">
                 <div id="searchResults" class="search-results"></div>
             </div>
-            <button class="btn btn-sm btn-outline-dark fw-bold rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#configModal"><i class="bi bi-gear-fill"></i></button>
+            <div class="d-flex align-items-center gap-2">
+                <span class="text-muted small">Connecté : <strong>{{ user.username }}</strong></span>
+                <a class="btn btn-sm btn-outline-secondary fw-bold rounded-pill px-3" href="/logout">Déconnexion</a>
+                <button class="btn btn-sm btn-outline-dark fw-bold rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#configModal"><i class="bi bi-gear-fill"></i></button>
+            </div>
         </div>
     </div>
 </nav>
@@ -120,8 +124,7 @@
     <tbody id="searchTable">
         {% for p in products %}
         <tr class="search-item">
-            <td class="ps-4 fw-bold">{{ p.name }}</td><td class="text-center"><span class="badge bg-light text-dark border">{{ p.vat_rate }}%</span></td><td class="text-end pe-4 fw-bold fs-5">{{ p.price }} €</td>
-            <td class="text-end pe-4"><button class="btn btn-sm btn-outline-primary border-0 me-1" onclick='openProductModal({{ p.id }}, "{{ p.name }}", {{ p.price }}, {{ p.vat_rate }})'><i class="bi bi-pencil-fill"></i></button><button class="btn btn-sm btn-outline-danger border-0" onclick="deleteProduct({{ p.id }})"><i class="bi bi-trash-fill"></i></button></td>
+            <td class="ps-4 fw-bold">{{ p.name }}</td><td class="text-center"><span class="badge bg-light text-dark border">{{ p.vat_rate }}%</span></td><td class="text-end pe-4 fw-bold fs-5">{{ p.price }} €</td><td class="text-end pe-4"><button class="btn btn-sm btn-outline-primary border-0 me-1" onclick='openProductModal({{ p.id }}, "{{ p.name }}", {{ p.price }}, {{ p.vat_rate }})'><i class="bi bi-pencil-fill"></i></button><button class="btn btn-sm btn-outline-danger border-0" onclick="deleteProduct({{ p.id }})"><i class="bi bi-trash-fill"></i></button></td>
         </tr>
         {% endfor %}
     </tbody></table></div>
@@ -129,23 +132,24 @@
 </div>
 
 <div class="modal fade" id="editorModal" tabindex="-1" data-bs-backdrop="static"><div class="modal-dialog modal-xl modal-dialog-scrollable"><div class="modal-content"><div class="modal-header border-0 pb-0"><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body bg-light">
-    <div class="invoice-sheet mx-auto rounded-3" style="max-width: 900px;">
-        <input type="hidden" id="editInvoiceId"><div class="row invoice-header-row"><div class="col-6"><div class="logo-placeholder mb-2"><img src="{{ company.logo_url }}" width="80" class="rounded-3"></div><div class="company-name fs-4">{{ company.name }}</div><div class="text-muted">{{ company.address }}</div></div><div class="col-6 text-end"><label class="fw-bold text-uppercase small text-muted mb-1">Client</label><div class="input-group mb-3 justify-content-end"><select id="editCustomer" class="form-select w-auto text-end bg-white border shadow-sm fw-bold" style="max-width: 300px;" onchange="updateClientInfo()"><option value="" disabled selected>-- Sélectionner --</option>{% for c in customers %}<option value="{{ c.id }}" data-addr="{{ c.address }}" data-siret="{{ c.siret }}">{{ c.name }}</option>{% endfor %}</select><button class="btn btn-primary shadow-sm" type="button" onclick="openChildModal('clientModal')"><i class="bi bi-plus-lg"></i></button></div><div id="clientInfoDisplay" class="text-muted small p-3 bg-light rounded-3 border text-start d-inline-block" style="min-width: 250px;">Sélectionnez un client...</div></div></div>
+    <div class="invoice-sheet mx-auto rounded-3" style="max-width: 900px;"><input type="hidden" id="editInvoiceId"><div class="row invoice-header-row"><div class="col-6"><div class="logo-placeholder mb-2"><img src="{{ company.logo_url }}" width="80" class="rounded-3"></div><div class="company-name fs-4">{{ company.name }}</div><div class="text-muted">{{ company.address }}</div></div><div class="col-6 text-end"><label class="fw-bold text-uppercase small text-muted mb-1">Client</label><div class="input-group mb-3 justify-content-end"><select id="editCustomer" class="form-select w-auto text-end bg-white border shadow-sm fw-bold" style="max-width: 300px;" onchange="updateClientInfo()"><option value="" disabled selected>-- Sélectionner --</option>{% for c in customers %}<option value="{{ c.id }}" data-addr="{{ c.address }}" data-siret="{{ c.siret }}">{{ c.name }}</option>{% endfor %}</select><button class="btn btn-primary shadow-sm" type="button" onclick="openChildModal('clientModal')"><i class="bi bi-plus-lg"></i></button></div><div id="clientInfoDisplay" class="text-muted small p-3 bg-light rounded-3 border text-start d-inline-block" style="min-width: 250px;">Sélectionnez un client...</div></div></div>
         <div class="invoice-title mt-4">Facture <span id="displayInvNum" class="text-primary"></span></div><p class="text-muted mb-4">Date : <span id="displayDate"></span></p>
         <table class="table table-custom align-middle mt-4"><thead><tr><th style="width: 30%" class="rounded-start-3">Description</th><th style="width: 10%" class="text-center">Qté</th><th style="width: 15%" class="text-end">Prix HT</th><th style="width: 10%" class="text-center">Remise %</th><th style="width: 15%" class="text-center">TVA %</th><th style="width: 15%" class="text-end">Total HT</th><th style="width: 5%" class="rounded-end-3"></th></tr></thead><tbody id="linesContainer"></tbody></table><button class="btn btn-light text-primary fw-bold w-100 mb-5 p-3 border border-primary border-dashed rounded-3" onclick="addLine()"><i class="bi bi-plus-circle me-2"></i>Ajouter une ligne</button>
-        <div class="row mt-5">
-            <div class="col-6"><div class="payment-alert shadow-sm p-3"><i class="bi bi-calendar-event me-2"></i>Échéance</div><div class="mt-3 ps-3 text-muted fw-bold">Date limite : <input type="date" id="editDueDate" class="form-control d-inline-block w-auto ms-2 border shadow-sm fw-bold"></div></div>
-            <div class="col-6">
-                <div class="total-box bg-light p-4 rounded-4 border">
-                    <div class="d-flex justify-content-between mb-2"><span>Total HT</span><span id="displayHT" class="fw-bold">0,00 €</span></div>
-                    <div class="d-flex justify-content-between mb-2 text-muted"><span>Total TVA</span><span id="displayTVA">0,00 €</span></div>
-                    <div class="d-flex justify-content-between mt-3 pt-3 border-top fs-3 text-primary fw-bold"><span>Net à payer</span><span id="displayTTC">0,00 €</span></div>
-                </div>
+        <div class="row mt-5"><div class="col-6"><div class="payment-alert shadow-sm p-3"><i class="bi bi-calendar-event me-2"></i>Échéance</div><div class="mt-3 ps-3 text-muted fw-bold">Date limite : <input type="date" id="editDueDate" class="form-control d-inline-block w-auto ms-2 border shadow-sm fw-bold"></div></div>
+        <div class="col-6">
+            <div class="total-box bg-light p-4 rounded-4 border">
+                <div class="d-flex justify-content-between mb-2"><span>Total HT</span><span id="displayHT" class="fw-bold">0,00 €</span></div>
+                <div class="d-flex justify-content-between mb-2 text-muted"><span>Total TVA</span><span id="displayTVA">0,00 €</span></div>
+                <div class="d-flex justify-content-between mt-3 pt-3 border-top fs-3 text-primary fw-bold"><span>Net à payer</span><span id="displayTTC">0,00 €</span></div>
             </div>
-        </div>
-        <hr class="my-5"><div class="invoice-footer row text-muted small"><div class="col-6"><strong class="text-dark">{{ company.name }}</strong><br>SIRET: {{ company.siret }}</div><div class="col-6 text-end"><strong class="text-dark">Banque</strong><br>IBAN: {{ company.iban }}</div></div>
+        </div></div><hr class="my-5"><div class="invoice-footer row text-muted small"><div class="col-6"><strong class="text-dark">{{ company.name }}</strong><br>SIRET: {{ company.siret }}</div><div class="col-6 text-end"><strong class="text-dark">Banque</strong><br>IBAN: {{ company.iban }}</div></div>
     </div>
-</div><div class="modal-footer bg-white border-top-0"><button type="button" class="btn btn-light fw-bold rounded-pill px-4" data-bs-dismiss="modal">Fermer</button><button type="button" class="btn btn-primary fw-bold px-5 rounded-pill shadow-sm" onclick="saveInvoice()"><i class="bi bi-check-lg me-2"></i>Enregistrer</button></div></div></div></div>
+</div><div class="modal-footer bg-white border-top-0">
+    <button type="button" id="btnPdf" class="btn btn-outline-dark fw-bold rounded-pill px-4 me-auto d-none" onclick="downloadPdf()"><i class="bi bi-printer-fill me-2"></i>Télécharger PDF</button>
+    
+    <button type="button" class="btn btn-light fw-bold rounded-pill px-4" data-bs-dismiss="modal">Fermer</button>
+    <button type="button" class="btn btn-primary fw-bold px-5 rounded-pill shadow-sm" onclick="saveInvoice()"><i class="bi bi-check-lg me-2"></i>Enregistrer</button>
+</div></div></div></div>
 
 <div class="modal fade" id="clientModal" style="z-index: 1070;"><div class="modal-dialog modal-dialog-centered"><div class="modal-content rounded-4 border-0 shadow"><div class="modal-header border-0 pb-0"><h5 class="fw-bold" id="clientModalTitle">Nouveau Client</h5><button type="button" class="btn-close" onclick="closeChildModal('clientModal')"></button></div><div class="modal-body p-4"><input type="hidden" id="editClientId"><input id="newClientName" class="form-control mb-3 shadow-sm" placeholder="Nom Entreprise"><input id="newClientEmail" class="form-control mb-3 shadow-sm" placeholder="Email"><textarea id="newClientAddr" class="form-control mb-3 shadow-sm" rows="3" placeholder="Adresse"></textarea><input id="newClientSiret" class="form-control mb-4 shadow-sm" placeholder="SIRET"><button class="btn btn-primary w-100 fw-bold rounded-pill py-2 shadow-sm" onclick="saveClient()">Enregistrer</button></div></div></div></div>
 <div class="modal fade" id="productModal" style="z-index: 1070;"><div class="modal-dialog modal-dialog-centered"><div class="modal-content rounded-4 border-0 shadow"><div class="modal-header border-0 pb-0"><h5 class="fw-bold" id="prodModalTitle">Nouveau Produit</h5><button type="button" class="btn-close" onclick="closeChildModal('productModal')"></button></div><div class="modal-body p-4"><input type="hidden" id="editProdId"><label class="small fw-bold text-muted mb-1">Désignation</label><input id="newProdName" class="form-control mb-3 shadow-sm" placeholder="Ex: Maintenance"><label class="small fw-bold text-muted mb-1">Prix de vente HT (€)</label><input id="newProdPrice" class="form-control mb-3 shadow-sm" type="number" step="0.01"><label class="small fw-bold text-muted mb-1">Taux de TVA (%)</label><select id="newProdVat" class="form-select mb-4 shadow-sm"><option value="20.0">20%</option><option value="10.0">10%</option><option value="5.5">5.5%</option><option value="0.0">0%</option></select><button class="btn btn-primary w-100 fw-bold rounded-pill py-2 shadow-sm" onclick="saveProduct()">Sauvegarder</button></div></div></div></div>
@@ -201,7 +205,29 @@
     function openProductModal(id=null, name="", price="", vat=20.0) { const modal = new bootstrap.Modal(document.getElementById('productModal')); document.getElementById('editProdId').value = id || ""; document.getElementById('newProdName').value = name; document.getElementById('newProdPrice').value = price; document.getElementById('newProdVat').value = vat; document.getElementById('prodModalTitle').innerText = id ? "Modifier Produit" : "Nouveau Produit"; modal.show(); }
     async function saveProduct() { const id = document.getElementById('editProdId').value; const payload = { name: document.getElementById('newProdName').value, price: parseFloat(document.getElementById('newProdPrice').value), vat_rate: parseFloat(document.getElementById('newProdVat').value) }; let url = '/products/', method = 'POST'; if (id) { url = '/products/' + id; method = 'PUT'; } const res = await fetch(url, { method: method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) }); if(res.ok) { if(document.getElementById('editorModal').classList.contains('show')) { const newProd = await res.json(); if (!id) { ALL_PRODUCTS.push(newProd); document.querySelectorAll('select[id^="p-"]').forEach(s => s.add(new Option(newProd.name, newProd.id))); if(activeRowId) { document.getElementById('p-'+activeRowId).value = newProd.id; upd(activeRowId); } activeRowId = null; closeChildModal('productModal'); } else location.reload(); } else location.reload(); } }
     function setTextSafe(id, text) { const el = document.getElementById(id); if (el) el.innerText = text; }
-    function openEditor(invId=null, custId=null, lines=[], dueDateStr=null) { new bootstrap.Modal(document.getElementById('editorModal')).show(); document.getElementById('editInvoiceId').value = invId || ""; setTextSafe('displayInvNum', invId ? "#" + invId : "BROUILLON"); setTextSafe('displayDate', new Date().toLocaleDateString('fr-FR')); if (dueDateStr && dueDateStr !== "None") { document.getElementById('editDueDate').value = dueDateStr.split('T')[0]; } else { const d = new Date(); const term = parseInt("{{ company.payment_term }}") || 30; d.setDate(d.getDate() + term); document.getElementById('editDueDate').value = d.toISOString().split('T')[0]; } document.getElementById('editCustomer').value = custId || ""; updateClientInfo(); document.getElementById('linesContainer').innerHTML = ""; if (lines && lines.length > 0) { lines.forEach(l => { let safeVat = (l.vat_rate !== null && l.vat_rate !== undefined) ? l.vat_rate : 20; addLine(l.product_id, l.quantity, l.discount, safeVat); }); } else { addLine(); } }
+    
+    // --- FONCTION PDF ---
+    function downloadPdf() {
+        const id = document.getElementById('editInvoiceId').value;
+        if(id) window.open('/invoices/' + id + '/pdf', '_blank');
+    }
+
+    function openEditor(invId=null, custId=null, lines=[], dueDateStr=null) { 
+        new bootstrap.Modal(document.getElementById('editorModal')).show(); 
+        document.getElementById('editInvoiceId').value = invId || ""; 
+        
+        // Affichage/Masquage bouton PDF
+        const btnPdf = document.getElementById('btnPdf');
+        if (invId) btnPdf.classList.remove('d-none'); else btnPdf.classList.add('d-none');
+
+        setTextSafe('displayInvNum', invId ? "#" + invId : "BROUILLON"); 
+        setTextSafe('displayDate', new Date().toLocaleDateString('fr-FR')); 
+        if (dueDateStr && dueDateStr !== "None") { document.getElementById('editDueDate').value = dueDateStr.split('T')[0]; } else { const d = new Date(); const term = parseInt("{{ company.payment_term }}") || 30; d.setDate(d.getDate() + term); document.getElementById('editDueDate').value = d.toISOString().split('T')[0]; } 
+        document.getElementById('editCustomer').value = custId || ""; updateClientInfo(); 
+        document.getElementById('linesContainer').innerHTML = ""; 
+        if (lines && lines.length > 0) { lines.forEach(l => { let safeVat = (l.vat_rate !== null && l.vat_rate !== undefined) ? l.vat_rate : 20; addLine(l.product_id, l.quantity, l.discount, safeVat); }); } else { addLine(); } 
+    }
+    
     function addLine(prodId=null, qty=1, disc=0, vat=null) { const rid = Date.now() + Math.floor(Math.random() * 1000); let opts = ALL_PRODUCTS.map(p => `<option value="${p.id}" ${p.id == prodId ? 'selected' : ''}>${p.name}</option>`).join(''); const tr = document.createElement('tr'); tr.id = 'r-'+rid; tr.innerHTML = `<td><div class="input-group"><select class="form-select bg-white border shadow-sm fw-bold" id="p-${rid}" onchange="upd(${rid})"><option value="" disabled ${!prodId?'selected':''}>- Produit -</option>${opts}</select><button class="btn btn-outline-primary shadow-sm border" onclick="openProductModal(null, '', '', 20.0); activeRowId = ${rid};"><i class="bi bi-plus-lg"></i></button></div></td><td class="text-center"><input type="number" class="form-control text-center bg-white border shadow-sm fw-bold" id="q-${rid}" value="${qty}" min="1" onchange="upd(${rid})"></td><td class="text-end"><input class="form-control text-end bg-light border-0 fw-bold" id="pr-${rid}" readonly></td><td class="text-center"><input type="number" class="form-control text-center bg-white border shadow-sm" id="d-${rid}" value="${disc}" min="0" max="100" onchange="upd(${rid})" placeholder="0"></td><td class="text-center"><input class="form-control text-center bg-white border shadow-sm" id="v-${rid}" value="${(vat != null) ? vat : 20}" onchange="upd(${rid})"></td><td class="text-end pt-2 fw-bold fs-5" id="tot-${rid}">0.00 €</td><td class="text-center"><button class="btn btn-link text-danger p-0 mt-2" onclick="this.closest('tr').remove(); updTotals()"><i class="bi bi-trash-fill fs-5"></i></button></td>`; document.getElementById('linesContainer').appendChild(tr); if(prodId) { const p = ALL_PRODUCTS.find(x => x.id == prodId); if(p) { document.getElementById('pr-'+rid).value = p.price.toFixed(2) + " €"; upd(rid, false); } else { console.warn("Produit ID " + prodId + " introuvable"); } } }
     function upd(rid, resetVat=true) { const pVal = document.getElementById('p-'+rid).value; if(!pVal) return; const p = ALL_PRODUCTS.find(x => x.id == pVal); if(!p) return; if(resetVat && p) document.getElementById('v-'+rid).value = p.vat_rate; const q = document.getElementById('q-'+rid).value || 1; const d = document.getElementById('d-'+rid).value || 0; const vat = document.getElementById('v-'+rid).value || 0; const price = p.price; const ht = price * q * (1 - (d/100)); document.getElementById('pr-'+rid).value = price.toFixed(2) + " €"; document.getElementById('tot-'+rid).innerText = ht.toFixed(2) + " €"; updTotals(); }
     function updTotals() { let totalHT = 0; let totalVAT = 0; document.querySelectorAll('[id^="r-"]').forEach(row => { const rid = row.id.split('-')[1]; const totEl = document.getElementById('tot-'+rid); const vatEl = document.getElementById('v-'+rid); if (totEl && vatEl) { const htLine = parseFloat(totEl.innerText.replace(' €','')) || 0; const vatRate = parseFloat(vatEl.value) || 0; totalHT += htLine; totalVAT += htLine * (vatRate / 100); } }); setTextSafe('displayHT', totalHT.toFixed(2) + " €"); setTextSafe('displayTVA', totalVAT.toFixed(2) + " €"); setTextSafe('displayTTC', (totalHT + totalVAT).toFixed(2) + " €"); }

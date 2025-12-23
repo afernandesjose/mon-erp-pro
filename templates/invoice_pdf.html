@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        @page { size: A4; margin: 2cm; }
+        body { font-family: Helvetica, Arial, sans-serif; font-size: 14px; line-height: 1.5; color: #333; }
+        .header { display: flex; justify-content: space-between; margin-bottom: 40px; }
+        .logo { max-width: 150px; margin-bottom: 10px; }
+        .company-info { font-size: 12px; color: #666; }
+        .client-box { border: 1px solid #ddd; padding: 20px; border-radius: 5px; width: 40%; margin-left: auto; background: #f9f9f9; }
+        .invoice-details { margin-top: 40px; margin-bottom: 30px; }
+        .title { font-size: 24px; font-weight: bold; color: {{ company.theme_color }}; }
+        
+        table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+        th { text-align: left; border-bottom: 2px solid #ddd; padding: 10px; font-size: 12px; text-transform: uppercase; color: #555; }
+        td { padding: 12px 10px; border-bottom: 1px solid #eee; }
+        .text-right { text-align: right; }
+        .text-center { text-align: center; }
+        
+        .totals { width: 40%; margin-left: auto; }
+        .total-row { display: flex; justify-content: space-between; padding: 5px 0; }
+        .total-final { font-size: 18px; font-weight: bold; border-top: 2px solid #333; padding-top: 10px; margin-top: 10px; }
+        
+        .footer { position: fixed; bottom: 0; left: 0; right: 0; text-align: center; font-size: 10px; color: #aaa; border-top: 1px solid #eee; padding-top: 10px; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div>
+            {% if company.logo_url %}
+            <img src="{{ company.logo_url }}" class="logo">
+            {% endif %}
+            <div class="company-info" style="white-space: pre-line;">
+                <strong>{{ company.name }}</strong>
+                {{ company.address }}
+                SIRET: {{ company.siret }}
+            </div>
+        </div>
+        <div class="client-box">
+            <strong>CLIENT</strong><br>
+            {{ invoice.customer.name }}<br>
+            <div style="font-size: 12px; color: #555; margin-top: 5px;">
+                {{ invoice.customer.address }}<br>
+                {{ invoice.customer.email }}
+            </div>
+        </div>
+    </div>
+
+    <div class="invoice-details">
+        <div class="title">FACTURE #{{ invoice.id }}</div>
+        <div>Date d'émission : {{ invoice.date.strftime('%d/%m/%Y') }}</div>
+        <div>Date d'échéance : <strong>{{ invoice.due_date.strftime('%d/%m/%Y') if invoice.due_date else '-' }}</strong></div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 40%">Description</th>
+                <th class="text-center">Qté</th>
+                <th class="text-right">Prix Unit. HT</th>
+                <th class="text-center">Remise</th>
+                <th class="text-center">TVA</th>
+                <th class="text-right">Total HT</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for line in invoice.lines %}
+            <tr>
+                <td>{{ line.product.name }}</td>
+                <td class="text-center">{{ line.quantity }}</td>
+                <td class="text-right">{{ "%.2f"|format(line.unit_price) }} €</td>
+                <td class="text-center">{{ line.discount }}%</td>
+                <td class="text-center">{{ line.vat_rate }}%</td>
+                <td class="text-right">{{ "%.2f"|format(line.quantity * line.unit_price * (1 - (line.discount or 0)/100)) }} €</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="totals">
+        <div class="total-row"><span>Total HT</span> <span>{{ "%.2f"|format(invoice.total_ht) }} €</span></div>
+        <div class="total-row" style="color: #666;"><span>Total TVA</span> <span>{{ "%.2f"|format(invoice.total_tax) }} €</span></div>
+        <div class="total-row total-final"><span>NET À PAYER</span> <span>{{ "%.2f"|format(invoice.total_ttc) }} €</span></div>
+    </div>
+
+    <div class="footer">
+        {{ company.name }} - SIRET {{ company.siret }} - TVA {{ company.vat_number }}<br>
+        IBAN: {{ company.iban }} - BIC: {{ company.bic }}<br>
+        {{ company.legal_terms }}
+    </div>
+
+</body>
+</html>
